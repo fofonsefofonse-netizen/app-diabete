@@ -33,10 +33,23 @@ Règles strictes :
 const parseResponse = (text: string): GeminiResult => {
     const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleaned);
-    const validGI: GlycemicIndex[] = ['Élevé', 'Moyen', 'Bas'];
-    if (!validGI.includes(parsed.glycemicIndex)) {
-        parsed.glycemicIndex = 'Moyen';
+
+    // Validation stricte des champs
+    const carbs = Number(parsed.totalCarbs);
+    if (!isFinite(carbs) || carbs < 0 || carbs > 2000) {
+        throw new Error('Valeur de glucides invalide reçue de l\'IA.');
     }
+    parsed.totalCarbs = Math.round(carbs);
+
+    const validGI: GlycemicIndex[] = ['Élevé', 'Moyen', 'Bas'];
+    if (!validGI.includes(parsed.glycemicIndex)) parsed.glycemicIndex = 'Moyen';
+
+    if (typeof parsed.details !== 'string' || parsed.details.trim().length === 0) {
+        parsed.details = 'Détails non disponibles';
+    }
+    // Tronquer pour éviter des réponses anormalement longues
+    parsed.details = parsed.details.substring(0, 600);
+
     return parsed as GeminiResult;
 };
 

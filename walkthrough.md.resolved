@@ -1,0 +1,27 @@
+# Résumé de l'Application "CarbTracker"
+
+L'application a été entièrement construite comme prévu. Grâce à une architecture moderne, fluide et optimisée, elle permet un rendu premium et une analyse très rapide des glucides par intelligence artificielle.
+
+## Fonctionnalités Implémentées
+
+- **Interface Utilisateur Premium** : Composants React avec un style *Glassmorphism* personnalisé en CSS pur ([index.css](file:///c:/Users/AD/Desktop/APP%20DIABETE/src/index.css)), sans dépendance graphique lourde, assurant une parfaite légèreté de l'application et des animations d'apparitions très fluides.
+- **Paramètres Locaux** : Un composant [Settings.tsx](file:///c:/Users/AD/Desktop/APP%20DIABETE/src/components/Settings.tsx) permet à l'utilisateur de fournir sa clé d'API Google Gemini, qui est stockée de façon sécurisée en local (`localStorage`). L'application n'envoie strictement aucune donnée à nos serveurs.
+- **Scanner Intelligent** : Le composant [Scanner.tsx](file:///c:/Users/AD/Desktop/APP%20DIABETE/src/components/Scanner.tsx) propose deux modes intuitifs avec des temps de chargement animés :
+  1. *Photo* : Capture par appareil photo ou import d'image de la galerie. La photo est convertie en Base64.
+  2. *Texte* : Saisie libre du repas.
+  La donnée est ensuite envoyée directement à *Google Gemini 1.5 Flash* (intégré dans [lib/gemini.ts](file:///c:/Users/AD/Desktop/APP%20DIABETE/src/lib/gemini.ts)), qui est instruit par notre *Prompt System* pour renvoyer rigoureusement le format JSON contenant les grammes et les détails.
+- **Tableau de Bord & Historique** : Sur [Dashboard.tsx](file:///c:/Users/AD/Desktop/APP%20DIABETE/src/components/Dashboard.tsx), une jauge SVG circulaire conçue sur mesure montre le quota quotidien. Elle s'anime au chargement et change intelligemment de couleur (vert, orange ou rouge au-delà de 90%). L'historique stocke localement les derniers repas dans App.tsx.
+- **Support PWA** : Le plugin `vite-plugin-pwa` a été configuré pour une installation native (Ajout à l'écran d'accueil).
+
+## Comment tester et l'utiliser
+
+1. Lancez le serveur local avec `cd "APP DIABETE"` suivi de `npm run dev`.
+2. Ouvrez l'application dans votre navigateur.
+3. Au premier lancement, la page "Paramètres" s'ouvre. Entrez votre clé Secure Gemini API (Créez-en une gratuitement sur Google AI Studio si besoin).
+4. Cliquez sur le gros bouton vert "Appareil Photo" au milieu, uploadez une image d'assiette, et attendez que la magie opère ! 
+
+## Qualité Technique
+- Le code source a passé avec succès l'étape rigoureuse du build (TypeScript). Aucune erreur n'a été détectée.
+- Les fichiers composants réutilisables (Props, Types explicites) ont été isolés pour faciliter l'évolution.
+
+L'application est prête à être utilisée au quotidien !

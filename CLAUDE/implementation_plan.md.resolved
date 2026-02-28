@@ -1,0 +1,53 @@
+# Application de Calcul de Glucides Premium (CarbTracker)
+
+Une application web moderne, riche et dynamique permettant de calculer la quantité de glucides d'un repas à partir d'une photo ou d'une liste d'ingrédients. L'application utilisera le framework React, l'intelligence artificielle (Gemini API) pour analyser les images, et des standards de design premium.
+
+## User Review Required
+
+> [!IMPORTANT]
+> Pour offrir la meilleure expérience sans nécessiter de serveur complexe (garantissant ainsi votre anonymat et la gratuité), l'application demandera une **Clé d'API Gemini** la première fois. La clé sera sauvegardée uniquement sur votre téléphone/ordinateur.
+>
+> **L'application sera une PWA (Progressive Web App)** : Vous pourrez l'ajouter à l'écran d'accueil de votre téléphone pour qu'elle se comporte comme une vraie application mobile.
+>
+> Est-ce que cette architecture (PWA + Clé API sur l'appareil) vous convient pour qu'on commence le développement ?
+
+## Proposed Features & Changes
+
+### Design Premium & UX
+- **Palette de Couleurs** : Combinaison moderne "Clean Health" (Gris-Bleu foncé pour le texte, Blanc pur, effets *Glassmorphism* et accents Vert Émeraude / Bleu Océan pour la vitalité).
+- **Typographie** : Police `Inter` ou `Outfit` via Google Fonts pour une lecture optimale.
+- **Micro-animations** : Transitions CSS fluides au survol, apparitions en fondu pour les photos uploadées.
+
+### Fonctionnalités Clés
+- **Tableau de bord (Dashboard)** : Visualisation de votre quota de glucides de la journée avec une jauge circulaire (ex: 150g / 200g consommés).
+- **Historique Local** : Sauvegarde des repas scannés au sein du navigateur (`localStorage`) pour consulter les jours précédents.
+- **Analyse Image/Texte (Gemini)** : Prompt IA affiné pour renvoyer :
+  1. Le taux de glucides estimé (en grammes).
+  2. Les ingrédients détectés de manière lisible.
+  3. Une estimation rapide de l'Index Glycémique (Élevé / Moyen / Bas) des principaux ingrédients pour informer l'utilisateur.
+
+### Configuration du Projet
+#### [NEW] `index.css`
+Système de design avec variables CSS, utilitaires de layout, et styles glassmorphism.
+
+#### [NEW] `App.tsx`
+Gestion de l'état global (Quota journalier, Historique des repas, Clé API). Navigation entre les vues (Dashboard, Scanner, Historique, Paramètres).
+
+#### [NEW] `components/Scanner.tsx`
+Interface drag & drop / bouton de capture photo qui lit le fichier, l'encode en Base64 et l'envoie à Gemini pour l'analyse.
+
+#### [NEW] `components/Dashboard.tsx`
+Interface récapitulant les repas du jour, avec une jauge ou barre de progression représentant le total de glucides.
+
+#### [NEW] `lib/gemini.ts`
+Fonctions utilitaires abstraites pour communiquer efficacement avec Google Generative AI (gestion des erreurs, prompt structuré).
+
+## Verification Plan
+
+### Automated Tests
+- Vérifier la robustesse du rendu UI sur différentes tailles d'écrans (Responsive Mobile/Desktop).
+- Vérifier la sauvegarde et la récupération de l'état dans le `localStorage`.
+
+### Manual Verification
+- Simulation d'une journée complète : Saisie d'un repas matinal (texte), puis d'un déjeuner (photo d'une assiette), et vérification que le total des glucides s'incrémente correctement.
+- Tests du stockage local en rafraîchissant la page.

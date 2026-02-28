@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm run:*)",
+      "Bash(git:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)",
+      "mcp__claude_ai_Vercel__deploy_to_vercel",
+      "Bash(npx vercel:*)",
+      "mcp__claude_ai_Vercel__get_project",
+      "Bash(gh api:*)",
+      "Bash(__NEW_LINE_77c934a778102e07__ curl:*)",
+      "Bash(__NEW_LINE_44c23d7b587177ba__ curl:*)",
+      "Bash(__NEW_LINE_0485f5093fdef9dd__ curl:*)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "Bash(start:*)",
+      "mcp__claude_ai_Vercel__check_domain_availability_and_price"
+    ]
+  }
+}
