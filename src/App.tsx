@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Home, Camera, History as HistoryIcon, Settings as SettingsIcon, BarChart2 } from 'lucide-react';
 import { ToastContext } from './contexts/ToastContext';
 import { useToast } from './hooks/useToast';
@@ -76,12 +76,15 @@ const ViewFallback = () => (
 );
 
 function App() {
-  const [currentView, setCurrentView]         = useState<View>('dashboard');
-  const [apiKey, setApiKey]                   = useState<string | null>(null);
-  const [meals, setMeals]                     = useState<Meal[]>([]);
-  const [dailyGoal, setDailyGoal]             = useState<number>(250);
-  const [themeMode, setThemeMode]             = useState<ThemeMode>('system');
-  const [insulinSettings, setInsulinSettings] = useState<InsulinSettings>(DEFAULT_INSULIN);
+  const [currentView, setCurrentView]               = useState<View>('dashboard');
+  const [apiKey, setApiKey]                         = useState<string | null>(null);
+  const [meals, setMeals]                           = useState<Meal[]>([]);
+  const [dailyGoal, setDailyGoal]                   = useState<number>(250);
+  const [themeMode, setThemeMode]                   = useState<ThemeMode>('system');
+  const [insulinSettings, setInsulinSettings]       = useState<InsulinSettings>(DEFAULT_INSULIN);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  const notifTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { toasts, addToast, removeToast } = useToast();
 
@@ -118,6 +121,9 @@ function App() {
         if (isValidInsulinSettings(parsed)) setInsulinSettings(parsed);
       } catch { /* ignorer */ }
     }
+
+    const storedNotif = localStorage.getItem('carbtracker_notifications');
+    if (storedNotif === 'true') setNotificationsEnabled(true);
   }, []);
 
   useEffect(() => {
@@ -125,6 +131,27 @@ function App() {
     if (themeMode === 'system') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', themeMode);
   }, [themeMode]);
+
+  // ── Timer de rappel 4h (fallback pour quand l'app est ouverte) ────────────
+  useEffect(() => {
+    if (notifTimerRef.current) clearTimeout(notifTimerRef.current);
+    if (!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const lastMeal = meals[0];
+    if (!lastMeal) return;
+    const elapsed    = Date.now() - new Date(lastMeal.date).getTime();
+    const remaining  = 4 * 60 * 60 * 1000 - elapsed;
+    if (remaining <= 0) return; // déjà dépassé, pas de spam
+    notifTimerRef.current = setTimeout(() => {
+      if (Notification.permission === 'granted') {
+        new Notification('CarbTracker', {
+          body: '⏰ Pas de repas depuis 4h. Pensez à noter votre prochain repas !',
+          icon: '/icon.svg',
+          tag: 'meal-reminder',
+        });
+      }
+    }, remaining);
+    return () => { if (notifTimerRef.current) clearTimeout(notifTimerRef.current); };
+  }, [meals, notificationsEnabled]);
 
   const saveMeals = useCallback((newMeals: Meal[]) => {
     setMeals(newMeals);
@@ -146,6 +173,28 @@ function App() {
     localStorage.setItem('carbtracker_insulin', JSON.stringify(settings));
   };
 
+  const handleSaveNotifications = useCallback(async (enabled: boolean) => {
+    if (enabled && 'Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        addToast('Permission refusée. Activez les notifications dans les paramètres du navigateur.', 'warning');
+        return;
+      }
+      // Tenter le Periodic Background Sync (Chrome Android installé)
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if ('periodicSync' in reg) {
+            await (reg as any).periodicSync.register('meal-reminder', { minInterval: 60 * 60 * 1000 });
+          }
+        } catch { /* Non supporté sur ce navigateur — le setTimeout dans l'app prend le relais */ }
+      }
+      addToast('Rappels activés ✓', 'success');
+    }
+    setNotificationsEnabled(enabled);
+    localStorage.setItem('carbtracker_notifications', enabled ? 'true' : 'false');
+  }, [addToast]);
+
   const handleScanResult = useCallback((
     carbs: number, details: string,
     glycemicIndex: GlycemicIndex, category: MealCategory,
@@ -155,14 +204,29 @@ function App() {
       date: new Date().toISOString(),
       carbs, details, glycemicIndex, category,
     };
-    saveMeals([newMeal, ...meals]);
+    const updated = [newMeal, ...meals];
+    saveMeals(updated);
     addToast(`Repas sauvegardé — ${carbs}g de glucides`, 'success');
     setCurrentView('dashboard');
+    // Notifier le service worker du dernier repas (pour les rappels background)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready
+        .then(reg => reg.active?.postMessage({ type: 'MEAL_SAVED', timestamp: Date.now() }))
+        .catch(() => {});
+    }
   }, [saveMeals, meals, addToast]);
 
   const handleDeleteMeal = useCallback((id: string) => {
     saveMeals(meals.filter(m => m.id !== id));
     addToast('Repas supprimé', 'info');
+  }, [saveMeals, meals, addToast]);
+
+  const handleEditMeal = useCallback((
+    id: string,
+    updates: Partial<Pick<Meal, 'carbs' | 'details' | 'category' | 'glycemicIndex'>>,
+  ) => {
+    saveMeals(meals.map(m => m.id === id ? { ...m, ...updates } : m));
+    addToast('Repas modifié', 'success');
   }, [saveMeals, meals, addToast]);
 
   const today      = new Date().toLocaleDateString();
@@ -188,7 +252,7 @@ function App() {
       case 'history':
         return (
           <Suspense fallback={<ViewFallback />}>
-            <HistoryView meals={meals} dailyGoal={dailyGoal} onDeleteMeal={handleDeleteMeal} />
+            <HistoryView meals={meals} dailyGoal={dailyGoal} onDeleteMeal={handleDeleteMeal} onEditMeal={handleEditMeal} />
           </Suspense>
         );
       case 'stats':
@@ -204,6 +268,7 @@ function App() {
             dailyGoal={dailyGoal} onSaveDailyGoal={handleSaveDailyGoal}
             themeMode={themeMode} onSaveTheme={handleSaveTheme}
             insulinSettings={insulinSettings} onSaveInsulinSettings={handleSaveInsulinSettings}
+            notificationsEnabled={notificationsEnabled} onSaveNotifications={handleSaveNotifications}
           />
         );
       default:

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Camera, ImagePlus, Loader2, Type, CheckCircle, RotateCcw, TrendingUp, Syringe } from 'lucide-react';
+import { Camera, ImagePlus, Loader2, Type, CheckCircle, RotateCcw, TrendingUp, Syringe, PenLine } from 'lucide-react';
 import { analyzeImageWithGemini, analyzeTextWithGemini } from '../lib/gemini';
 import type { GeminiResult, GlycemicIndex } from '../lib/gemini';
 import { compressImage, MAX_FILE_SIZE } from '../lib/imageUtils';
@@ -28,6 +28,12 @@ const GI_LABELS: Record<GlycemicIndex, string> = {
 const CATEGORIES: MealCategory[] = ['petit-déjeuner', 'déjeuner', 'dîner', 'collation'];
 const MIN_CALL_INTERVAL_MS = 2000;
 
+const GI_OPTIONS: { value: GlycemicIndex; color: string }[] = [
+  { value: 'Bas',   color: '#10B981' },
+  { value: 'Moyen', color: '#F59E0B' },
+  { value: 'Élevé', color: '#EF4444' },
+];
+
 function calcInsulin(carbs: number, currentGlucose: number, s: InsulinSettings): number {
   return Math.max(0, Math.round((carbs / s.insulinRatio + (currentGlucose - s.targetGlucose) / s.correctionFactor) * 10) / 10);
 }
@@ -35,7 +41,7 @@ function calcInsulin(carbs: number, currentGlucose: number, s: InsulinSettings):
 const Scanner: React.FC<ScannerProps> = ({ apiKey, onScanResult, insulinSettings }) => {
   const addToast = useToastContext();
 
-  const [mode, setMode]               = useState<'image' | 'text'>('image');
+  const [mode, setMode]               = useState<'image' | 'text' | 'manual'>('image');
   const [loading, setLoading]         = useState(false);
   const [textInput, setTextInput]     = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -43,6 +49,12 @@ const Scanner: React.FC<ScannerProps> = ({ apiKey, onScanResult, insulinSettings
   const [isDragging, setIsDragging]   = useState(false);
   const [category, setCategory]       = useState<MealCategory>('collation');
   const [currentGlucose, setCurrentGlucose] = useState('');
+
+  // Manuel mode
+  const [manualCarbs, setManualCarbs]       = useState('');
+  const [manualDetails, setManualDetails]   = useState('');
+  const [manualCategory, setManualCategory] = useState<MealCategory>(() => detectCategory(new Date()));
+  const [manualGi, setManualGi]             = useState<GlycemicIndex>('Moyen');
 
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const lastCallRef   = useRef<number>(0);
@@ -143,6 +155,20 @@ const Scanner: React.FC<ScannerProps> = ({ apiKey, onScanResult, insulinSettings
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleManualSubmit = () => {
+    const carbsNum = parseFloat(manualCarbs);
+    if (isNaN(carbsNum) || carbsNum < 0 || carbsNum > 2000) {
+      addToast('Valeur de glucides invalide (0–2000 g).', 'error');
+      return;
+    }
+    const details = manualDetails.trim() || 'Repas manuel';
+    onScanResult(Math.round(carbsNum), details, manualGi, manualCategory);
+    setManualCarbs('');
+    setManualDetails('');
+    setManualGi('Moyen');
+    setManualCategory(detectCategory(new Date()));
+  };
+
   /* ── VUE RÉSULTAT ── */
   if (scanResult) {
     const giColor    = GI_COLORS[scanResult.glycemicIndex];
@@ -234,7 +260,8 @@ const Scanner: React.FC<ScannerProps> = ({ apiKey, onScanResult, insulinSettings
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} className="animate-fade-in">
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <button className={`btn${mode === 'image' ? ' btn-primary' : ''}`} style={{ flex: 1 }} onClick={() => setMode('image')}><Camera size={18} /> Photo</button>
-        <button className={`btn${mode === 'text' ? ' btn-primary' : ''}`} style={{ flex: 1 }} onClick={() => setMode('text')}><Type size={18} /> Texte</button>
+        <button className={`btn${mode === 'text'  ? ' btn-primary' : ''}`} style={{ flex: 1 }} onClick={() => setMode('text')}><Type size={18} /> Texte</button>
+        <button className={`btn${mode === 'manual'? ' btn-primary' : ''}`} style={{ flex: 1 }} onClick={() => setMode('manual')}><PenLine size={18} /> Manuel</button>
       </div>
 
       <div className="glass-panel" style={{ textAlign: 'center' }}>
@@ -285,9 +312,76 @@ const Scanner: React.FC<ScannerProps> = ({ apiKey, onScanResult, insulinSettings
           </div>
         )}
 
-        {!apiKey && (
+        {!apiKey && mode !== 'manual' && (
           <div style={{ marginTop: '1rem', padding: '0.875rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(239,68,68,0.1)', color: '#EF4444', fontSize: '0.875rem' }}>
             Veuillez configurer votre clé API dans les paramètres pour utiliser le scanner.
+          </div>
+        )}
+
+        {mode === 'manual' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h3 style={{ color: 'var(--primary)', textAlign: 'left', margin: 0 }}>Saisie manuelle</h3>
+
+            <div>
+              <label style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.375rem' }}>Glucides (g) *</label>
+              <input
+                type="number"
+                className="input-base"
+                placeholder="Ex : 45"
+                value={manualCarbs}
+                onChange={e => setManualCarbs(e.target.value)}
+                min="0" max="2000" step="1"
+              />
+            </div>
+
+            <div>
+              <label style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.375rem' }}>Description</label>
+              <textarea
+                className="input-base"
+                placeholder="Ex: Riz blanc, poulet, salade..."
+                value={manualDetails}
+                onChange={e => setManualDetails(e.target.value)}
+                maxLength={500}
+                style={{ minHeight: '80px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Catégorie</label>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {CATEGORIES.map(cat => {
+                  const cfg = CATEGORY_CONFIG[cat];
+                  const isActive = cat === manualCategory;
+                  return (
+                    <button key={cat} onClick={() => setManualCategory(cat)} style={{ padding: '0.4rem 0.8rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', border: `1.5px solid ${isActive ? cfg.color : 'var(--glass-border)'}`, background: isActive ? `${cfg.color}22` : 'transparent', color: isActive ? cfg.color : 'var(--text-muted)', transition: 'var(--transition)' }}>
+                      {cfg.emoji} {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>Index Glycémique</label>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {GI_OPTIONS.map(({ value, color }) => {
+                  const isActive = manualGi === value;
+                  return (
+                    <button key={value} onClick={() => setManualGi(value)} style={{ flex: 1, padding: '0.45rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', border: `1.5px solid ${isActive ? color : 'var(--glass-border)'}`, background: isActive ? `${color}22` : 'transparent', color: isActive ? color : 'var(--text-muted)', transition: 'var(--transition)' }}>
+                      {value}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button
+              className="btn btn-primary"
+              disabled={!manualCarbs.trim()}
+              onClick={handleManualSubmit}
+            >
+              Enregistrer le repas
+            </button>
           </div>
         )}
       </div>

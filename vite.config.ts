@@ -8,6 +8,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       manifest: {
         name: 'CarbTracker',
         short_name: 'CarbTracker',
@@ -15,8 +25,16 @@ export default defineConfig({
         theme_color: '#10B981',
         background_color: '#F8FAFC',
         display: 'standalone',
-        icons: [] // Pas d'icônes générées pour l'instant
-      }
-    })
+        start_url: '/',
+        icons: [
+          {
+            src: 'icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+    }),
   ],
 })

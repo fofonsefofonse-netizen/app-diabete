@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyRound, ShieldCheck, Trash2, Target, Sun, Moon, Monitor, Syringe } from 'lucide-react';
+import { KeyRound, ShieldCheck, Trash2, Target, Sun, Moon, Monitor, Syringe, Bell } from 'lucide-react';
 import type { ThemeMode, InsulinSettings } from '../App';
 
 interface SettingsProps {
@@ -11,6 +11,8 @@ interface SettingsProps {
   onSaveTheme: (mode: ThemeMode) => void;
   insulinSettings: InsulinSettings;
   onSaveInsulinSettings: (settings: InsulinSettings) => void;
+  notificationsEnabled: boolean;
+  onSaveNotifications: (enabled: boolean) => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -18,6 +20,7 @@ const Settings: React.FC<SettingsProps> = ({
   dailyGoal, onSaveDailyGoal,
   themeMode, onSaveTheme,
   insulinSettings, onSaveInsulinSettings,
+  notificationsEnabled, onSaveNotifications,
 }) => {
   const [inputValue, setInputValue]         = useState(apiKey || '');
   const [isSaved, setIsSaved]               = useState(false);
@@ -213,6 +216,37 @@ const Settings: React.FC<SettingsProps> = ({
         <button className="btn btn-primary" onClick={handleSaveInsulin}>
           {isInsulinSaved ? '✓ Paramètres sauvegardés !' : 'Sauvegarder'}
         </button>
+      </div>
+
+      {/* ── Rappels repas ── */}
+      <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Bell style={{ color: 'var(--primary)' }} />
+            <h3 style={{ margin: 0 }}>Rappels repas</h3>
+          </div>
+          <label className="toggle-switch">
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={e => onSaveNotifications(e.target.checked)}
+            />
+            <span className="toggle-slider" />
+          </label>
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
+          Recevez une notification si aucun repas n'a été enregistré depuis 4h.
+          {!('Notification' in window) && (
+            <span style={{ color: '#F59E0B', display: 'block', marginTop: '0.375rem' }}>
+              ⚠️ Les notifications ne sont pas supportées sur ce navigateur.
+            </span>
+          )}
+        </p>
+        {notificationsEnabled && (
+          <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            ✅ Rappels activés — vous serez alerté 4h après votre dernier repas enregistré.
+          </div>
+        )}
       </div>
 
       {/* ── Clé API ── */}

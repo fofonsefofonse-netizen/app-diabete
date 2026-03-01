@@ -16,7 +16,8 @@
       "Bash(curl:*)",
       "Bash(ping:*)",
       "Bash(start:*)",
-      "mcp__claude_ai_Vercel__check_domain_availability_and_price"
+      "mcp__claude_ai_Vercel__check_domain_availability_and_price",
+      "Bash(npm install:*)"
     ]
   }
 }

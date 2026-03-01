@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { Trash2, Download, History as HistoryIcon } from 'lucide-react';
+import { Trash2, Download, History as HistoryIcon, Pencil } from 'lucide-react';
 import type { Meal } from '../App';
 import type { GlycemicIndex } from '../lib/gemini';
 import { CATEGORY_CONFIG } from '../lib/categories';
+import EditMealModal from './EditMealModal';
 
 interface HistoryProps {
   meals: Meal[];
   dailyGoal: number;
   onDeleteMeal: (id: string) => void;
+  onEditMeal: (id: string, updates: Partial<Pick<Meal, 'carbs' | 'details' | 'category' | 'glycemicIndex'>>) => void;
 }
 
 const GI_COLORS: Record<GlycemicIndex, string> = {
@@ -56,8 +58,9 @@ function exportCSV(meals: Meal[], dailyGoal: number) {
   URL.revokeObjectURL(url);
 }
 
-const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal }) => {
+const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal, onEditMeal }) => {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingMeal, setEditingMeal]     = useState<Meal | null>(null);
 
   if (meals.length === 0) {
     return (
@@ -72,6 +75,14 @@ const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal }) => 
   const groups = useMemo(() => groupByDay(meals), [meals]);
 
   return (
+    <>
+    {editingMeal && (
+      <EditMealModal
+        meal={editingMeal}
+        onSave={(id, updates) => { onEditMeal(id, updates); setEditingMeal(null); }}
+        onClose={() => setEditingMeal(null)}
+      />
+    )}
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} className="animate-fade-in">
 
       {/* ── En-tête + export ── */}
@@ -180,7 +191,7 @@ const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal }) => 
                       </div>
                     </div>
 
-                    {/* Glucides + supprimer */}
+                    {/* Glucides + actions */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                       <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '0.9rem' }}>
                         {meal.carbs}g
@@ -204,18 +215,32 @@ const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal }) => 
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => setConfirmDelete(meal.id)}
-                          style={{
-                            background: 'transparent', border: 'none', cursor: 'pointer',
-                            color: 'var(--text-muted)', padding: '0.25rem',
-                            borderRadius: 'var(--radius-sm)', transition: 'var(--transition)',
-                            display: 'flex', alignItems: 'center',
-                          }}
-                          title="Supprimer ce repas"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => setEditingMeal(meal)}
+                            style={{
+                              background: 'transparent', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', padding: '0.25rem',
+                              borderRadius: 'var(--radius-sm)', transition: 'var(--transition)',
+                              display: 'flex', alignItems: 'center',
+                            }}
+                            title="Modifier ce repas"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(meal.id)}
+                            style={{
+                              background: 'transparent', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', padding: '0.25rem',
+                              borderRadius: 'var(--radius-sm)', transition: 'var(--transition)',
+                              display: 'flex', alignItems: 'center',
+                            }}
+                            title="Supprimer ce repas"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -226,6 +251,7 @@ const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal }) => 
         );
       })}
     </div>
+    </>
   );
 };
 
