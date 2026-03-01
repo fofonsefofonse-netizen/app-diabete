@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Trash2, Download, History as HistoryIcon } from 'lucide-react';
 import type { Meal } from '../App';
 import type { GlycemicIndex } from '../lib/gemini';
@@ -69,7 +69,7 @@ const History: React.FC<HistoryProps> = ({ meals, dailyGoal, onDeleteMeal }) => 
     );
   }
 
-  const groups = groupByDay(meals);
+  const groups = useMemo(() => groupByDay(meals), [meals]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} className="animate-fade-in">

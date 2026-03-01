@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Home, Camera, History as HistoryIcon, Settings as SettingsIcon, BarChart2 } from 'lucide-react';
 import { ToastContext } from './contexts/ToastContext';
 import { useToast } from './hooks/useToast';
@@ -31,6 +31,32 @@ const DEFAULT_INSULIN: InsulinSettings = {
   correctionFactor: 2.0,
   targetGlucose: 5.5,
 };
+
+// ── Validation des données localStorage ──────────────────────────────────────
+const VALID_THEMES: ThemeMode[] = ['system', 'light', 'dark'];
+
+function isValidMeal(m: unknown): m is Meal {
+  if (typeof m !== 'object' || m === null) return false;
+  const meal = m as Record<string, unknown>;
+  return (
+    typeof meal.id === 'string' && meal.id.length > 0 &&
+    typeof meal.date === 'string' && !isNaN(Date.parse(meal.date)) &&
+    typeof meal.carbs === 'number' && isFinite(meal.carbs) &&
+    meal.carbs >= 0 && meal.carbs <= 2000 &&
+    typeof meal.details === 'string'
+  );
+}
+
+function isValidInsulinSettings(s: unknown): s is InsulinSettings {
+  if (typeof s !== 'object' || s === null) return false;
+  const ins = s as Record<string, unknown>;
+  return (
+    typeof ins.enabled === 'boolean' &&
+    typeof ins.insulinRatio === 'number' && ins.insulinRatio > 0 &&
+    typeof ins.correctionFactor === 'number' && ins.correctionFactor > 0 &&
+    typeof ins.targetGlucose === 'number' && ins.targetGlucose > 0
+  );
+}
 
 export interface Meal {
   id: string;
@@ -66,8 +92,12 @@ function App() {
 
     const storedMeals = localStorage.getItem('carbtracker_meals');
     if (storedMeals) {
-      try { setMeals(JSON.parse(storedMeals)); }
-      catch { /* données corrompues, on repart à zéro */ }
+      try {
+        const parsed: unknown = JSON.parse(storedMeals);
+        if (Array.isArray(parsed)) {
+          setMeals(parsed.filter(isValidMeal));
+        }
+      } catch { /* données corrompues, on repart à zéro */ }
     }
 
     const storedGoal = localStorage.getItem('carbtracker_daily_goal');
@@ -76,13 +106,17 @@ function App() {
       if (!isNaN(parsed) && parsed > 0) setDailyGoal(parsed);
     }
 
-    const storedTheme = localStorage.getItem('carbtracker_theme') as ThemeMode;
-    if (storedTheme) setThemeMode(storedTheme);
+    const storedTheme = localStorage.getItem('carbtracker_theme');
+    if (storedTheme && (VALID_THEMES as string[]).includes(storedTheme)) {
+      setThemeMode(storedTheme as ThemeMode);
+    }
 
     const storedInsulin = localStorage.getItem('carbtracker_insulin');
     if (storedInsulin) {
-      try { setInsulinSettings(JSON.parse(storedInsulin)); }
-      catch { /* ignorer */ }
+      try {
+        const parsed: unknown = JSON.parse(storedInsulin);
+        if (isValidInsulinSettings(parsed)) setInsulinSettings(parsed);
+      } catch { /* ignorer */ }
     }
   }, []);
 
@@ -92,10 +126,10 @@ function App() {
     else root.setAttribute('data-theme', themeMode);
   }, [themeMode]);
 
-  const saveMeals = (newMeals: Meal[]) => {
+  const saveMeals = useCallback((newMeals: Meal[]) => {
     setMeals(newMeals);
     localStorage.setItem('carbtracker_meals', JSON.stringify(newMeals));
-  };
+  }, []);
 
   const handleSaveDailyGoal = (goal: number) => {
     setDailyGoal(goal);
@@ -112,28 +146,34 @@ function App() {
     localStorage.setItem('carbtracker_insulin', JSON.stringify(settings));
   };
 
-  const handleScanResult = (
+  const handleScanResult = useCallback((
     carbs: number, details: string,
     glycemicIndex: GlycemicIndex, category: MealCategory,
   ) => {
     const newMeal: Meal = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString(),
       carbs, details, glycemicIndex, category,
     };
     saveMeals([newMeal, ...meals]);
     addToast(`Repas sauvegardé — ${carbs}g de glucides`, 'success');
     setCurrentView('dashboard');
-  };
+  }, [saveMeals, meals, addToast]);
 
-  const handleDeleteMeal = (id: string) => {
+  const handleDeleteMeal = useCallback((id: string) => {
     saveMeals(meals.filter(m => m.id !== id));
     addToast('Repas supprimé', 'info');
-  };
+  }, [saveMeals, meals, addToast]);
 
-  const today       = new Date().toLocaleDateString();
-  const todayMeals  = meals.filter(m => new Date(m.date).toLocaleDateString() === today);
-  const todayCarbs  = todayMeals.reduce((acc, m) => acc + m.carbs, 0);
+  const today      = new Date().toLocaleDateString();
+  const todayMeals = useMemo(
+    () => meals.filter(m => new Date(m.date).toLocaleDateString() === today),
+    [meals, today],
+  );
+  const todayCarbs = useMemo(
+    () => todayMeals.reduce((acc, m) => acc + m.carbs, 0),
+    [todayMeals],
+  );
 
   const renderView = () => {
     switch (currentView) {

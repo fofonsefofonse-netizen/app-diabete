@@ -202,10 +202,18 @@ const Scanner: React.FC<ScannerProps> = ({ apiKey, onScanResult, insulinSettings
             <label style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block', marginBottom: '0.375rem' }}>Glycémie actuelle (mmol/L)</label>
             <input type="number" className="input-base" placeholder={`Cible : ${insulinSettings.targetGlucose}`} value={currentGlucose} onChange={e => setCurrentGlucose(e.target.value)} min="1" max="30" step="0.1" style={{ marginBottom: '0.875rem' }} />
             {insulinDose !== null ? (
-              <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--radius-md)', padding: '1rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>{insulinDose}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>unité{insulinDose !== 1 ? 's' : ''} suggérée{insulinDose !== 1 ? 's' : ''}</div>
-              </div>
+              insulinDose === 0 ? (
+                <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--radius-md)', padding: '1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>✅</div>
+                  <div style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '0.95rem' }}>Glycémie dans la cible</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Pas de correction nécessaire</div>
+                </div>
+              ) : (
+                <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--radius-md)', padding: '1rem', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>{insulinDose}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>unité{insulinDose !== 1 ? 's' : ''} suggérée{insulinDose !== 1 ? 's' : ''}</div>
+                </div>
+              )
             ) : (
               <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Entrez votre glycémie pour calculer la dose.</p>
             )}
